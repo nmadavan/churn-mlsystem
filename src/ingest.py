@@ -34,13 +34,59 @@ def check_schema(incoming: pd.DataFrame, expected: list[str]) -> tuple[set, set]
     return missing, unexpected
 
 
+def validate_records(df: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split rows into (valid, rejected). Rejected rows get a `reject_reason` column.
+
+    File-level schema is checked separately; this catches per-record data-quality
+    problems so a few bad rows are quarantined instead of failing the whole batch.
+    Domain knowledge is encoded here: a blank TotalCharges is NOT a reject (it is the
+    legitimate tenure=0 case), but a non-numeric one is.
+    """
+    id_col = cfg["data"]["id_column"]
+    target = cfg["target"]["column"]
+    labels = {cfg["target"]["positive_label"], cfg["target"]["negative_label"]}
+
+    reasons = pd.Series("", index=df.index)
+
+    def flag(invalid_mask: pd.Series, text: str) -> None:
+        m = invalid_mask.fillna(True)  # a NaN comparison result means "can't validate" -> reject
+        reasons.loc[m] = (reasons.loc[m] + ";" + text).str.lstrip(";")
+
+    ids = df[id_col].astype(str).str.strip()
+    flag(df[id_col].isna() | (ids == ""), "missing_id")
+
+    tenure = pd.to_numeric(df["tenure"], errors="coerce")
+    flag(tenure.isna() | (tenure < 0) | (tenure != tenure.round()), "bad_tenure")
+
+    monthly = pd.to_numeric(df["MonthlyCharges"], errors="coerce")
+    flag(monthly.isna() | (monthly < 0), "bad_monthly_charges")
+
+    senior = pd.to_numeric(df["SeniorCitizen"], errors="coerce")
+    flag(~senior.isin([0, 1]), "bad_senior_flag")
+
+    if target in df.columns:
+        flag(~df[target].isin(labels), "bad_target_label")
+
+    total_raw = df["TotalCharges"].astype(str).str.strip()
+    total_blank = total_raw.isin(["", "nan", "NaN"])       # allowed (tenure=0 customers)
+    total_num = pd.to_numeric(df["TotalCharges"], errors="coerce")
+    flag(~total_blank & (total_num.isna() | (total_num < 0)), "bad_total_charges")
+
+    is_valid = reasons == ""
+    valid = df[is_valid].copy()
+    rejected = df[~is_valid].copy()
+    rejected["reject_reason"] = reasons[~is_valid]
+    return valid, rejected
+
+
 def ingest(file_path: str, cfg: dict) -> dict:
     """Validate and merge one file. Returns a summary dict; raises on schema failure."""
     src_path = Path(file_path)
     incoming = pd.read_csv(src_path)
 
-    # Guardrail: a schema mismatch (upstream column added/removed/renamed) is
-    # rejected here rather than silently corrupting the training table.
+    # Guardrail 1 (file level): a schema mismatch (upstream column added/removed/
+    # renamed) affects every row, so the whole file is rejected rather than
+    # silently corrupting the training table.
     missing, unexpected = check_schema(incoming, expected_columns(cfg))
     if missing or unexpected:
         raise ValueError(
@@ -48,20 +94,31 @@ def ingest(file_path: str, cfg: dict) -> dict:
             f"missing={sorted(missing)} unexpected={sorted(unexpected)}"
         )
 
+    # Guardrail 2 (record level): quarantine individual bad rows to a reject file,
+    # then ingest the good ones. A few bad records never fail the whole batch.
+    valid, rejected = validate_records(incoming, cfg)
+    rows_rejected = len(rejected)
+    if rows_rejected:
+        reject_path = _write_rejects(rejected, src_path, cfg)
+        log.warning(
+            "Quarantined %d/%d records from %s -> %s",
+            rows_rejected, len(incoming), src_path.name, reject_path.name,
+        )
+
     id_col = cfg["data"]["id_column"]
     training_path = resolve_path(cfg["data"]["training_data_path"])
 
     if training_path.exists():
         existing = pd.read_csv(training_path)
-        updated_ids = set(existing[id_col]) & set(incoming[id_col])
+        updated_ids = set(existing[id_col]) & set(valid[id_col])
         # Upsert: keep='last' lets an incoming row overwrite an existing customer.
-        merged = pd.concat([existing, incoming]).drop_duplicates(
+        merged = pd.concat([existing, valid]).drop_duplicates(
             subset=id_col, keep="last"
         )
         rows_updated = len(updated_ids)
-        rows_new = len(incoming) - rows_updated
+        rows_new = len(valid) - rows_updated
     else:
-        merged = incoming.drop_duplicates(subset=id_col, keep="last")
+        merged = valid.drop_duplicates(subset=id_col, keep="last")
         rows_new, rows_updated = len(merged), 0
 
     training_path.parent.mkdir(parents=True, exist_ok=True)
@@ -73,15 +130,26 @@ def ingest(file_path: str, cfg: dict) -> dict:
         "rows_in_file": len(incoming),
         "rows_new": rows_new,
         "rows_updated": rows_updated,
+        "rows_rejected": rows_rejected,
         "total_rows": len(merged),
     }
     _append_audit_log(summary, cfg)
     log.info(
-        "Ingested %s: %d rows (%d new, %d updated) -> %d total on %s",
+        "Ingested %s: %d rows (%d new, %d updated, %d rejected) -> %d total on %s",
         summary["source_file"], summary["rows_in_file"], summary["rows_new"],
-        summary["rows_updated"], summary["total_rows"], summary["timestamp"],
+        summary["rows_updated"], summary["rows_rejected"], summary["total_rows"],
+        summary["timestamp"],
     )
     return summary
+
+
+def _write_rejects(rejected: pd.DataFrame, src_path: Path, cfg: dict) -> Path:
+    """Write quarantined rows (with reject_reason) to the rejects directory."""
+    rejects_dir = resolve_path(cfg["data"]["rejects_dir"])
+    rejects_dir.mkdir(parents=True, exist_ok=True)
+    reject_path = rejects_dir / f"{src_path.stem}_rejects.csv"
+    rejected.to_csv(reject_path, index=False)
+    return reject_path
 
 
 def _append_audit_log(summary: dict, cfg: dict) -> None:

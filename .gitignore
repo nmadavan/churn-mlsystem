@@ -17,6 +17,7 @@ models/**/*.pkl
 data/incoming/*.csv
 data/training_data.csv
 data/ingestion_log.csv
+data/rejects/*.csv
 
 # Scratch outputs
 *.tmp

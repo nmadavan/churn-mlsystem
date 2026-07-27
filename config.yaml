@@ -6,11 +6,13 @@ data:
   incoming_dir: data/incoming
   training_data_path: data/training_data.csv
   ingestion_log_path: data/ingestion_log.csv
-  id_column: customerID          # unique key used to merge/upsert incoming rows
+  rejects_dir: data/rejects       # quarantined bad records land here for reprocessing
+  id_column: customerID           # unique key used to merge/upsert incoming rows
 
 target:
   column: Churn
   positive_label: "Yes"
+  negative_label: "No"
 
 split:
   test_size: 0.20
