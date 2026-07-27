@@ -1,0 +1,35 @@
+# Single source of truth for paths, columns, and thresholds.
+# Both training and serving read from this file so behaviour stays consistent.
+
+data:
+  raw_path: data/raw/telco_churn.csv
+  incoming_dir: data/incoming
+  training_data_path: data/training_data.csv
+
+target:
+  column: Churn
+  positive_label: "Yes"
+
+split:
+  test_size: 0.20
+  val_size: 0.20        # taken from the training portion after the test split
+  random_state: 42
+  stratify: true
+
+model:
+  registry_dir: models
+  current_best_file: models/current_best.json
+
+evaluate:
+  report_dir: artifacts/eval
+  # Promotion guardrail: only replace the current best model if BOTH hold.
+  promote_min_auc: 0.80
+  promote_max_auc_drop_vs_baseline: 0.01
+
+serving:
+  host: 0.0.0.0
+  port: 8000
+
+monitoring:
+  drift_psi_warn: 0.20      # PSI above this flags feature drift
+  min_new_rows_for_retrain: 5000

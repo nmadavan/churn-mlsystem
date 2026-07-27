@@ -1,0 +1,13 @@
+# Virtualenv — recreated from requirements.txt, never committed
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# OS cruft
+.DS_Store
+
+# Scratch outputs (models/ and artifacts/ eval reports are committed intentionally)
+*.tmp
+scratch/
