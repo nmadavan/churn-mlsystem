@@ -12,6 +12,12 @@ __pycache__/
 # The text registry pointer (current_best.json) and eval reports stay committed.
 models/**/*.pkl
 
+# Generated data: demo batches and the growing training table are build outputs
+# (regenerate with scripts/make_demo_batches.py + src/ingest.py). Raw data stays.
+data/incoming/*.csv
+data/training_data.csv
+data/ingestion_log.csv
+
 # Scratch outputs
 *.tmp
 scratch/
