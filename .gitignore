@@ -8,6 +8,10 @@ __pycache__/
 # OS cruft
 .DS_Store
 
-# Scratch outputs (models/ and artifacts/ eval reports are committed intentionally)
+# Trained model binaries are build outputs — regenerate with `python -m src.train`.
+# The text registry pointer (current_best.json) and eval reports stay committed.
+models/**/*.pkl
+
+# Scratch outputs
 *.tmp
 scratch/
