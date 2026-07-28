@@ -18,6 +18,7 @@ data/incoming/*.csv
 data/training_data.csv
 data/ingestion_log.csv
 data/rejects/*.csv
+data/scored/*.csv
 
 # Scratch outputs
 *.tmp
