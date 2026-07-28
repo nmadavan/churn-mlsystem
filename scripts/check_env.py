@@ -24,8 +24,8 @@ def parse_requirements(path):
     """Return list of (dist_name, pinned_spec) from requirements.txt, skipping comments."""
     reqs = []
     for line in path.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
+        line = line.split("#", 1)[0].strip()  # drop inline and whole-line comments
+        if not line:
             continue
         dist = line.split("==")[0].split(">=")[0].strip()
         reqs.append((dist, line))
