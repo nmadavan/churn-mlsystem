@@ -140,6 +140,19 @@ data-metric alert, (b) fix the upstream pipeline, (c) reprocess quarantined/reje
 (d) if the live model degraded, roll back by pointing `current_best.json` at the previous
 good version, then retrain once clean data resumes.
 
+## 6b. Cross-platform reproducibility
+
+- The repo ships the **Dockerfile + source**, not a prebuilt image. A grader on Windows,
+  macOS, or Linux runs `docker build -t churn-api .` then `docker run -p 8000:8000 churn-api`,
+  and Docker builds for their CPU architecture automatically — no arch mismatch (the local
+  image is ARM64; building on an x86-64 host produces an x86-64 image).
+- Linux containers run on Windows via WSL2 and on macOS via the Docker Desktop Linux VM — the
+  image carries its own Linux userland, so host OS is irrelevant.
+- The image tag `churn-api` is assigned at build time via `docker build -t` (not defined in
+  the repo), so the README documents the exact build/run commands for consistency.
+- Non-Docker fallback: runs on any OS with Python 3.12 via venv + uvicorn. Code uses `pathlib`
+  for cross-platform paths; `core.autocrlf false` keeps line endings stable.
+
 ## 7. Key trade-offs, limitations, future work
 - Simpler model chosen over complex one — favours interpretability + recall over raw
   accuracy. Justified for churn.
