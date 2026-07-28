@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "model_path": "models/v1/model.pkl",
+  "metrics": {
+    "roc_auc": 0.8469,
+    "pr_auc": 0.659,
+    "f1": 0.6134,
+    "precision": 0.5052,
+    "recall": 0.7807,
+    "accuracy": 0.7388
+  },
+  "promoted_at": "2026-07-28T02:24:47+00:00"
+}
