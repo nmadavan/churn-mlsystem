@@ -103,7 +103,42 @@ final design document. Updated at the end of each build session.
 - Image size ~529 MB.
 
 ## 6. Monitoring, data quality, and retraining
-_(to be filled in Session 7)_
+
+**Monitoring plan (three layers, with owners):**
+- *Infra metrics* — request latency (avg + p95), error rate (4xx/5xx), throughput.
+  Dashboard + alerts for the **platform/on-call engineer**. Alert if p95 > 100 ms or error
+  rate > 1%.
+- *Data / feature metrics* — row counts per batch, null counts, out-of-range counts, and
+  **PSI drift** per numeric feature vs the training reference; ingestion **reject rate**
+  (from the audit log). For the **ML/data engineer**. Alert if PSI > 0.20 or reject rate
+  spikes.
+- *Model / business metrics* — ROC AUC on recent **labelled feedback**, and a proxy business
+  KPI (realised churn rate vs predicted). For the **data scientist / product owner**. Alert
+  if feedback AUC drops >= 0.05 vs the promoted model's test AUC.
+
+**Working drift / quality check (implemented in `src/monitoring.py`):**
+- PSI per numeric feature between the training reference and a recent batch; logs a WARNING
+  when PSI > `drift_psi_warn` (0.20). Also reports mean/std shift and null counts.
+- Verified: a simulated drifted batch produced PSI 5.00 (tenure) / 4.30 (MonthlyCharges) →
+  warnings; a real in-distribution batch (day1) produced PSI ~0.00 → no warning.
+- Caveat: in the demo, day1's feedback AUC is optimistic because those rows were in training;
+  real feedback AUC must come from genuinely new labelled outcomes.
+
+**Retraining trigger (`retraining_decision`, pure function; a scheduler could call it):**
+Retrain if ANY of:
+1. Data volume — new rows since last train >= `min_new_rows_for_retrain` (5000).
+2. Model degradation — reference AUC − recent-feedback AUC >= `auc_drop_retrain` (0.05).
+3. Feature drift — max PSI across features > `drift_psi_warn` (0.20).
+
+**Incident scenario — upstream schema change:**
+An upstream export drops the `Contract` column. Detection: ingestion's **file-level schema
+check** rejects the file immediately (exit 1, error logged) — the bad data never reaches the
+training table. If instead a column's *values* silently changed (e.g. a units change inflating
+`MonthlyCharges`), the **PSI drift check** would flag it on the next monitoring run, and the
+**retraining trigger** would fire on drift. Response: (a) page the on-call engineer via the
+data-metric alert, (b) fix the upstream pipeline, (c) reprocess quarantined/rejected rows,
+(d) if the live model degraded, roll back by pointing `current_best.json` at the previous
+good version, then retrain once clean data resumes.
 
 ## 7. Key trade-offs, limitations, future work
 - Simpler model chosen over complex one — favours interpretability + recall over raw

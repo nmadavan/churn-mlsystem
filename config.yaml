@@ -35,5 +35,7 @@ serving:
   port: 8000
 
 monitoring:
-  drift_psi_warn: 0.20      # PSI above this flags feature drift
-  min_new_rows_for_retrain: 5000
+  drift_psi_warn: 0.20        # PSI above this flags feature drift
+  min_new_rows_for_retrain: 5000    # retrain signal: enough new data accumulated
+  auc_drop_retrain: 0.05      # retrain signal: recent-feedback AUC drops this much
+  monitored_numeric_features: [tenure, MonthlyCharges, TotalCharges]
