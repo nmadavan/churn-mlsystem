@@ -1,6 +1,6 @@
 # Evaluation Report
 
-_Generated: 2026-07-28T02:24:47.389870+00:00_  
+_Generated: 2026-07-29T00:33:00.572892+00:00_  
 Training rows: 4507 | Val: 1127 | Test: 1409
 
 ## Baseline vs Candidate (validation set)

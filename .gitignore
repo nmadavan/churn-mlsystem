@@ -20,9 +20,11 @@ data/ingestion_log.csv
 data/rejects/*.csv
 data/scored/*.csv
 
-# Report packaging is local-only tooling; the design document source is design_doc.md
+# Report packaging is local-only tooling; the design document source is design_doc.md.
+# Screenshots show local machine details and are embedded in the PDF, so keep them local.
 scripts/build_report.py
 docs/design_doc.html
+docs/screenshots/
 
 # Scratch outputs
 *.tmp
