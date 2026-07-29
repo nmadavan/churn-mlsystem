@@ -26,7 +26,15 @@ python scripts/check_env.py --install
 
 ## Run order
 
-Every module runs as `python -m ...` from the project root.
+**Activate the venv first** so `python` uses the pinned dependencies:
+
+```bash
+source .venv/bin/activate          # prompt should now show (.venv)
+```
+
+This matters: the saved model is serialized with the pinned scikit-learn version, and
+running with a different (e.g. system) Python can fail to load it. Every module runs as
+`python -m ...` from the project root.
 
 ```bash
 # 1. Create demo daily batches from the raw dataset
