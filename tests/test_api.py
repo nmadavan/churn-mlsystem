@@ -1,18 +1,27 @@
 """Tests for the FastAPI inference service.
 
-Uses TestClient (in-process, no running server). The whole module is skipped if no
-model has been trained yet, so `pytest` still passes on a fresh clone.
+Uses TestClient (in-process, no running server). The whole module is skipped when the
+trained model *file* is absent (e.g. a fresh clone before training, since model.pkl is
+gitignored), so `pytest` still passes without a model present. Note: checking the
+registry pointer alone is not enough, because current_best.json is committed while the
+.pkl it references is not.
 """
 import pytest
 from fastapi.testclient import TestClient
 
 from src.app import app
-from src.config import load_config
+from src.config import load_config, resolve_path
 from src.registry import current_best
 
+
+def _model_file_available() -> bool:
+    pointer = current_best(load_config())
+    return pointer is not None and resolve_path(pointer["model_path"]).exists()
+
+
 pytestmark = pytest.mark.skipif(
-    current_best(load_config()) is None,
-    reason="no trained model; run `python -m src.train` first",
+    not _model_file_available(),
+    reason="no trained model file; run `python -m src.train` first",
 )
 
 VALID_PAYLOAD = {

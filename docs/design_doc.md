@@ -132,7 +132,9 @@ above 0.20. On a simulated drifted batch it reported PSI of 5.0 and 4.3 on shift
 a real in-distribution batch it reported roughly 0.0, correctly staying silent. The retraining
 trigger is a pure function that recommends retraining if any of three signals fire: enough new
 data has accumulated, feedback AUC has dropped past the threshold, or feature drift exceeds the
-PSI threshold.
+PSI threshold. One caveat I note honestly: in this demonstration the recent-feedback AUC is
+computed on a batch sampled from the training data, so it is optimistic; in production that
+signal would come from genuinely new labelled outcomes.
 
 **Incident scenario.** Suppose an upstream export drops the `Contract` column. The file-level
 schema check rejects the file immediately, so the corrupt data never enters the training table.
