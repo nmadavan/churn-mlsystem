@@ -25,6 +25,8 @@ data/scored/*.csv
 scripts/build_report.py
 docs/design_doc.html
 docs/screenshots/
+# exported report carries personal identifiers; keep local
+docs/*.pdf
 
 # Scratch outputs
 *.tmp
