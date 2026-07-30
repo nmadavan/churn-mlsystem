@@ -31,7 +31,7 @@ approximately zero so far. I drop `customerID` as a non-predictive identifier an
 target to 1/0.
 
 **Engineered features.** I add six non-trivial features, each motivated by exploratory
-analysis:
+analysis (the statistics below are reproducible via `scripts/eda.py`):
 
 - `tenure_bucket` — tenure banded into ranges. Churn falls steeply across bands (52.9% at
   0–6 months down to 9.5% at 49+ months).
@@ -105,14 +105,14 @@ reaches the model), and `/health`, which reports the loaded model version. The m
 loaded once at startup rather than per request. The batch path (`batch_score.py`) scores a
 whole CSV in a single vectorized pass.
 
-I measured both. Online latency over 300 requests was 6.6 ms average and 7.8 ms at p95; I
-report the percentile as well as the average because tail latency is what users actually
-experience. Batch throughput was about 220,000 rows per second — roughly 1,400 times more
-efficient per row than the online path, because it avoids per-request HTTP, JSON parsing, and
-validation overhead. This justifies the hybrid choice against the standard question of
-whether a human is waiting: for an agent looking at a live profile, the 6.6 ms online call is
-well under the ~100 ms "instant" threshold; for scoring the whole base overnight, no human
-waits, so the batch path is the right tool. The service is also containerized (Dockerfile),
+I measured both (a representative run). Online latency over 300 requests was 6.68 ms average
+and 7.19 ms at p95 (p99 7.80 ms); I report the percentile as well as the average because tail
+latency is what users actually experience. Batch throughput was about 347,000 rows per second
+— over two thousand times more efficient per row than the sequential online path, because it
+avoids per-request HTTP, JSON parsing, and validation overhead. This justifies the hybrid
+choice against the standard question of whether a human is waiting: for an agent looking at a
+live profile, the ~6.7 ms online call is well under the ~100 ms "instant" threshold; for
+scoring the whole base overnight, no human waits, so the batch path is the right tool. The service is also containerized (Dockerfile),
 and the image trains the model during the build so it is fully self-contained and reproducible
 across machines and operating systems.
 
@@ -146,7 +146,10 @@ data.
 ## 7. Key trade-offs, limitations, and future work
 
 I chose the simpler model over the more complex one, favouring interpretability and recall
-over raw accuracy; for churn that is the right trade-off. The decision threshold is fixed at
+over raw accuracy; for churn that is the right trade-off. That said, the Random Forest
+candidate was left largely untuned and evaluation used a single stratified split rather than
+cross-validation, so the baseline's win reflects a fair-but-not-exhaustive comparison at this
+scope; tuning the candidate and adding cross-validation are natural next steps. The decision threshold is fixed at
 0.5 and could be tuned to the retention budget as future work. The registry is file-based
 rather than a tracking server, which is sufficient at this scale but would become a managed
 artifact store in a larger system; likewise, the model binary is trained on setup because it

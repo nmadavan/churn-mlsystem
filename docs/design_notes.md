@@ -82,15 +82,15 @@ final design document. Updated at the end of each build session.
   prediction + probability + model_version.
 - **Batch:** `scripts/batch_score.py` scores a whole CSV in one vectorised pass.
 - **Model size:** 10 KB (LogReg = 55 coefficients + 1 intercept) → loads in ms, no GPU.
-- **Measured performance:**
-  - Batch: 7,043 rows in 0.032s → **~220,000 rows/sec**. Predicted churn 2,850 / 7,043.
-  - Online (300 requests): avg **6.60 ms**, p50 6.35, **p95 7.78**, p99 9.53, max 45.70 ms,
-    ~151 req/sec sequential.
-- **Inference-pattern justification (M2):** batch is ~1,400× more efficient per row (no
+- **Measured performance** (representative run, matches screenshot 2):
+  - Batch: 7,043 rows → **~347,000 rows/sec**. Predicted churn 2,850 / 7,043.
+  - Online (300 requests): avg **6.68 ms**, p50 6.65, **p95 7.19**, p99 7.80, max 39.38 ms,
+    ~150 req/sec sequential.
+- **Inference-pattern justification (M2):** batch is over 2,000× more efficient per row (no
   per-request HTTP/JSON/validation overhead), so use it when no human waits (nightly
-  scoring). Online 6.6 ms is well under the ~100 ms "instant" bar, right for a human-waiting
+  scoring). Online ~6.7 ms is well under the ~100 ms "instant" bar, right for a human-waiting
   lookup. Hybrid = each pattern serves a distinct real use case.
-- **Trade-off noted:** p95 (7.78 ms) and max (45.70 ms) > avg (6.60 ms) — report percentiles,
+- **Trade-off noted:** p95 (7.19 ms) and max (39.38 ms) > avg (6.68 ms) — report percentiles,
   not just the average, because tail latency is what users feel.
 
 ## 5. Containerization (Docker)
@@ -178,7 +178,7 @@ good version, then retrain once clean data resumes.
 - Churn rate 26.5%; 11 blank TotalCharges; 7,043 rows; 55 model features.
 - Split 4,507 / 1,127 / 1,409.
 - Test ROC AUC 0.8469 (LogReg v1).
-- Batch ~220k rows/sec; online avg 6.60 ms / p95 7.78 ms.
+- Batch ~347k rows/sec; online avg 6.68 ms / p95 7.19 ms.
 - Model 10 KB; Docker image ~529 MB.
 
 ## Demo screenshot checklist (for the PDF)
